@@ -7,6 +7,7 @@ require("firebase/firestore");
 require('dotenv').config();
 const connect = require('./util/connect');
 const adminRoute = require('./routes/adminRoute');
+const contactRoute = require('./routes/contact');
 const verifyToken = require('./middlewares/verifyToken');
 connect.connectFirebase();
 connect.connectMongoDB()
@@ -14,7 +15,7 @@ connect.connectMongoDB()
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.listen(process.env.PORT)
-app.get('/', verifyToken, async (req, res) => {
+app.get('/', async (req, res) => {
     // const data = await firebase.firestore()
     //     .collection('users')
     //     .get()
@@ -25,7 +26,8 @@ app.get('/', verifyToken, async (req, res) => {
     //         return data
     //     })
     // console.log(data);
-    res.send('data  ghgf')
+    res.send('data asdads ghgf')
 })
 app.use('/admin', adminRoute)
+app.use('/video-call', contactRoute)
 // app.use('*')

@@ -3,8 +3,9 @@ const router = express.Router();
 const Admin = require('../model/Admin');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const verifyToken = require('../middlewares/verifyToken');
 
-router.post('/create', (req, res) => {
+router.post('/create', verifyToken, (req, res) => {
     try {
         const hash = bcrypt.hashSync(req.body.hash, parseInt(process.env.SALT));
         const admin = new Admin({
@@ -27,7 +28,7 @@ router.post('/login', async (req, res) => {
         },
             (err, value) => {
                 if (err) throw new Error('database failed to connect');
-                if (!value) res.status(400).json({ message: 'Can not find this id' })
+                if (!value) res.status(400).json({ message: 'Can not find this email' })
                 else if (value) {
                     if (bcrypt.compareSync(req.body.hash, value.hash)) {
                         const token = jwt.sign({

@@ -14,7 +14,12 @@ connect.connectMongoDB()
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.listen(process.env.PORT)
+app.listen(process.env.PORT);
+app.all('/', function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    next()
+});
 app.get('/', async (req, res) => {
     // const data = await firebase.firestore()
     //     .collection('users')

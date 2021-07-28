@@ -11,15 +11,15 @@ const contactRoute = require('./routes/contact');
 const verifyToken = require('./middlewares/verifyToken');
 connect.connectFirebase();
 connect.connectMongoDB()
+app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.listen(process.env.PORT);
-app.all('/', function (req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
-    next()
-});
 app.get('/', async (req, res) => {
     // const data = await firebase.firestore()
     //     .collection('users')
@@ -31,7 +31,7 @@ app.get('/', async (req, res) => {
     //         return data
     //     })
     // console.log(data);
-    res.send('data asdads ghgf')
+    res.send({ 'data asdads ghgf': "asd212121" })
 })
 app.use('/admin', adminRoute)
 app.use('/video-call', contactRoute)

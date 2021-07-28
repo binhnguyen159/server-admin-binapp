@@ -21,6 +21,14 @@ router.post('/create', verifyToken, (req, res) => {
         res.status(401).send('Can not create account')
     }
 })
+router.get('/get-list', async (req, res) => {
+    try {
+        const user = await Admin.find();
+        res.send(user);
+    } catch (error) {
+        res.status(401).send('Can not create account')
+    }
+})
 router.post('/login', async (req, res) => {
     try {
         Admin.findOne({

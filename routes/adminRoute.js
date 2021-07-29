@@ -57,10 +57,8 @@ router.post('/login', async (req, res) => {
         res.status(400).json({ message: 'Can not find this id' })
     }
 });
-router.get('/', (req, res) => {
-    Admin.find().then((result) => {
-        res.send(result)
-    })
+router.get('/', verifyToken, (req, res) => {
+    res.send(req.header('auth-token'))
 })
 
 module.exports = router;

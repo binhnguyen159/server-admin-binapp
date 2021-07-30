@@ -1,9 +1,7 @@
 const express = require('express');
 const app = express()
 const mongoose = require('mongoose');
-const firebase = require('firebase/app');
-require("firebase/auth");
-require("firebase/firestore");
+
 require('dotenv').config();
 const connect = require('./util/connect');
 const adminRoute = require('./routes/adminRoute');
@@ -13,6 +11,7 @@ connect.connectFirebase();
 connect.connectMongoDB()
 app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT,DELETE");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, auth-token");
     next();
 });

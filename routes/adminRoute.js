@@ -4,11 +4,9 @@ const Admin = require('../model/Admin');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const verifyToken = require('../middlewares/verifyToken');
-// router.use(function (req, res, next) {
-//     res.header("Access-Control-Allow-Origin", "*");
-//     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-//     next();
-// });
+const firebase = require('firebase/app');
+require("firebase/auth");
+require("firebase/firestore");
 router.post('/create', verifyToken, (req, res) => {
     try {
         const hash = bcrypt.hashSync(req.body.hash, parseInt(process.env.SALT));
@@ -25,12 +23,51 @@ router.post('/create', verifyToken, (req, res) => {
         res.status(401).send('Can not create account')
     }
 })
-router.get('/get-list', async (req, res) => {
+router.get('/users', verifyToken, async (req, res) => {
     try {
-        const user = await Admin.find();
-        res.send(user);
+        const page = Number(req.query.page);
+        const pageSize = Number(req.query.pageSize);
+        const limit = page * pageSize <= 0 ? 6 : page * pageSize;
+        const [total, data] = await Promise.all([
+            firebase.firestore()
+                .collection('users')
+                .get().then(snap => {
+                    return snap.size;
+                }),
+            firebase.firestore()
+                .collection('users')
+                .orderBy('name', 'desc')
+                .limit(limit)
+                .get()
+                .then(snapshot => {
+                    const data = snapshot.docs.map(item => {
+                        return { id: item.id, ...item.data() };
+                    })
+                    return data
+                })
+        ]);
+        res.send({
+            page,
+            pageSize,
+            total,
+            totalPage: Math.ceil(total / pageSize),
+            data,
+        })
     } catch (error) {
-        res.status(401).send('Can not create account')
+        res.status(403).send(error.error)
+    }
+})
+router.delete('/users/:id', verifyToken, async (req, res) => {
+    try {
+        firebase.firestore()
+            .collection('users')
+            .doc(req.params.id)
+            .delete()
+            .then(doc => {
+                res.status(200).send("Deleted user")
+            })
+    } catch (error) {
+        res.status(403).send(error.error)
     }
 })
 router.post('/login', async (req, res) => {
@@ -62,7 +99,7 @@ router.post('/login', async (req, res) => {
     }
 });
 router.get('/', verifyToken, (req, res) => {
-    res.send(req.header('auth-token'))
+    res.send(req.header('auth-token'));
 })
 
 module.exports = router;

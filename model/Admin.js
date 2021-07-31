@@ -12,6 +12,15 @@ const AdminSchema = new Schema({
         required: true,
         min: 6
     },
+    name: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    avatar: {
+        type: String,
+        required: true,
+    },
 }, { timestamps: true });
 
 const Admin = model('Admin', AdminSchema);

@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const verifyToken = require('../middlewares/verifyToken');
 const firebase = require('firebase/app');
+const { projectManagement } = require('firebase-admin');
 require("firebase/auth");
 require("firebase/firestore");
 router.post('/create', verifyToken, (req, res) => {
@@ -21,6 +22,18 @@ router.post('/create', verifyToken, (req, res) => {
             })
     } catch (error) {
         res.status(401).send('Can not create account')
+    }
+})
+router.put('/:id', verifyToken, async (req, res) => {
+    try {
+        const body = req.body;
+        const id = req.params.id;
+        const data = await Admin.findByIdAndUpdate(id, {
+            ...body
+        }, { new: true })
+        res.send(data)
+    } catch (error) {
+        res.status(401).send('Can not update account')
     }
 })
 router.get('/users', verifyToken, async (req, res) => {
@@ -56,7 +69,8 @@ router.get('/users', verifyToken, async (req, res) => {
     } catch (error) {
         res.status(403).send(error.error)
     }
-})
+});
+
 router.delete('/users/:id', verifyToken, async (req, res) => {
     try {
         firebase.firestore()
@@ -66,10 +80,87 @@ router.delete('/users/:id', verifyToken, async (req, res) => {
             .then(doc => {
                 res.status(200).send("Deleted user")
             })
+        firebase.firestore()
+            .collection('posts')
+            .doc(req.params.id)
+            .delete()
+
     } catch (error) {
         res.status(403).send(error.error)
     }
 })
+router.delete('/posts', verifyToken, async (req, res) => {
+    try {
+        const postId = req.query.postId;
+        const userId = req.query.userId;
+        firebase.firestore()
+            .collection('posts')
+            .doc(userId)
+            .collection('userPosts')
+            .doc(postId)
+            .delete()
+    } catch (error) {
+        res.status(403).send(error.error)
+    }
+})
+
+router.get('/posts', async (req, res) => {
+    try {
+        data = await firebase.firestore()
+            .collection('posts')
+            .get()
+            .then(snapshot => {
+                const data = snapshot.docs.map(item => {
+                    return item.id
+                })
+                return data
+            })
+
+
+        let users = await Promise.all(data.map(user => {
+            return firebase.firestore()
+                .collection('users')
+                .doc(user)
+                .get()
+                .then(doc => {
+                    if (doc.exists)
+                        return { id: doc.id, ...doc.data() }
+                })
+        }))
+        let result = await Promise.all(users.map(user => {
+            return firebase.firestore()
+                .collection('posts')
+                .doc(user.id)
+                .collection("userPosts")
+                .get()
+                .then(snap => {
+                    return snap.docs.map(post => {
+
+                        let value;
+                        value = {
+                            ...user,
+                            postId: post.id,
+                            ...post.data()
+                        }
+                        return value;
+                    })
+                })
+        }))
+        const listResult = [];
+        result.forEach(element => {
+            element.forEach(el => {
+                listResult.push(el);
+            })
+        });
+        res.send({
+            result: listResult,
+        })
+    } catch (error) {
+        res.status(403).send(error.error)
+    }
+});
+
+
 router.post('/login', async (req, res) => {
     try {
         Admin.findOne({
@@ -99,7 +190,53 @@ router.post('/login', async (req, res) => {
     }
 });
 router.get('/', verifyToken, (req, res) => {
-    res.send(req.header('auth-token'));
+    const data = jwt.verify(req.header('auth-token'), process.env.KEY_SECRET);
+    res.send({
+        token: req.header('auth-token'),
+        data: data
+    });
 })
+
+router.get('/count', verifyToken, async (req, res) => {
+    try {
+        const [totalUsers, totalUserPosts] = await Promise.all([
+            firebase.firestore()
+                .collection('users')
+                .get().then(snap => {
+                    return snap.size;
+                }),
+            firebase.firestore()
+                .collection('posts')
+                .get().then(snap => {
+                    return snap.docs.map(item => {
+                        return item.id
+                    })
+                })
+        ])
+
+        let totalPosts = await Promise.all(totalUserPosts.map(post => {
+            return firebase.firestore()
+                .collection('posts')
+                .doc(post)
+                .collection("userPosts")
+                .get()
+                .then(snap => {
+                    return snap.size;
+                })
+        }))
+
+
+        const total = totalPosts.reduce((value, nextValue) => value + nextValue)
+
+
+        res.send({
+            users: totalUsers,
+            posts: total,
+        })
+
+    } catch (error) {
+        res.status(403).send(error.error)
+    }
+});
 
 module.exports = router;

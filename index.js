@@ -1,12 +1,12 @@
 const express = require('express');
-const app = express()
-const mongoose = require('mongoose');
-
+const app = express();
+const upload = require("express-fileupload");
+// var multer = require('multer');
+// var upload = multer();
 require('dotenv').config();
 const connect = require('./util/connect');
 const adminRoute = require('./routes/adminRoute');
 const contactRoute = require('./routes/contact');
-const verifyToken = require('./middlewares/verifyToken');
 connect.connectFirebase();
 connect.connectMongoDB()
 app.use(function (req, res, next) {
@@ -16,8 +16,12 @@ app.use(function (req, res, next) {
     next();
 });
 
-app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(upload({ useTempFiles: true }))
+// app.use(upload.array());
+app.use(express.static('public'));
+
 app.listen(process.env.PORT);
 app.get('/', async (req, res) => {
     res.send({ 'data asdads ghgf': "asd212121" })

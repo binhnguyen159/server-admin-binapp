@@ -5,9 +5,11 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const verifyToken = require('../middlewares/verifyToken');
 const firebase = require('firebase/app');
-const { projectManagement } = require('firebase-admin');
+const multer = require("multer");
 require("firebase/auth");
 require("firebase/firestore");
+const { cloudinary } = require("./../util/cloudinary")
+
 router.post('/create', verifyToken, (req, res) => {
     try {
         const hash = bcrypt.hashSync(req.body.hash, parseInt(process.env.SALT));
@@ -24,13 +26,20 @@ router.post('/create', verifyToken, (req, res) => {
         res.status(401).send('Can not create account')
     }
 })
-router.put('/:id', verifyToken, async (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
-        const body = req.body;
+        let body = { ...req.body };
         const id = req.params.id;
-        const data = await Admin.findByIdAndUpdate(id, {
-            ...body
-        }, { new: true })
+        let image;
+        if (req.files) {
+            image = await cloudinary.uploader.upload(req.files.avatar.tempFilePath)
+                .then(result => result)
+                .catch(err => {
+                    res.status(400).send(err)
+                })
+            body = { ...body, avatar: image.url }
+        }
+        const data = await Admin.findByIdAndUpdate(id, { ...body }, { new: true });
         res.send(data)
     } catch (error) {
         res.status(401).send('Can not update account')
@@ -189,11 +198,12 @@ router.post('/login', async (req, res) => {
         res.status(400).json({ message: 'Can not find this id' })
     }
 });
-router.get('/', verifyToken, (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
     const data = jwt.verify(req.header('auth-token'), process.env.KEY_SECRET);
+    const user = await Admin.findOne({ email: data.email });
     res.send({
         token: req.header('auth-token'),
-        data: data
+        data: user,
     });
 })
 

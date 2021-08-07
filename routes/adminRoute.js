@@ -5,7 +5,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const verifyToken = require('../middlewares/verifyToken');
 const firebase = require('firebase/app');
-const multer = require("multer");
 require("firebase/auth");
 require("firebase/firestore");
 const { cloudinary } = require("./../util/cloudinary")
@@ -248,5 +247,42 @@ router.get('/count', verifyToken, async (req, res) => {
         res.status(403).send(error.error)
     }
 });
+
+router.get("/post/:id/:userId", async (req, res) => {
+    try {
+        const page = Number(req.query.page);
+        const pageSize = Number(req.query.pageSize);
+        const data = await firebase.firestore()
+            .collection('posts')
+            .doc(req.params.userId)
+            .collection("userPosts")
+            .doc(req.params.id)
+            .collection("comments")
+            .orderBy("creation", "desc")
+            .limit(page * pageSize)
+            .get()
+            .then(snapshot => {
+                return snapshot.docs.map(item => {
+                    return { id: item.id, ...item.data() }
+                })
+            })
+        const listComments = await Promise.all(data.map(item => {
+            return firebase.firestore()
+                .collection('users')
+                .doc(item.creator)
+                .get()
+                .then(doc => {
+                    if (doc.exists) {
+                        return {
+                            ...item, user: { id: doc.id, ...doc.data() }
+                        }
+                    }
+                })
+        }))
+        res.send(listComments)
+    } catch (error) {
+        res.status(403).send(error.error)
+    }
+})
 
 module.exports = router;

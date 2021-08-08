@@ -114,7 +114,7 @@ router.delete('/posts', verifyToken, async (req, res) => {
 
 router.get('/posts', async (req, res) => {
     try {
-        data = await firebase.firestore()
+        const data = await firebase.firestore()
             .collection('posts')
             .get()
             .then(snapshot => {
@@ -307,6 +307,134 @@ router.get("/post/:id/:userId", verifyToken, async (req, res) => {
                 })
         }))
         res.send(listComments)
+    } catch (error) {
+        res.status(403).send(error.error)
+    }
+})
+router.get("/report-posts", verifyToken, async (req, res) => {
+    try {
+        const data = await firebase.firestore()
+            .collection('posts')
+            .get()
+            .then(snapshot => {
+                const data = snapshot.docs.map(item => {
+                    return item.id
+                })
+                return data
+            })
+
+
+        let users = await Promise.all(data.map(user => {
+            return firebase.firestore()
+                .collection('users')
+                .doc(user)
+                .get()
+                .then(doc => {
+                    if (doc.exists)
+                        return { id: doc.id, ...doc.data() }
+                })
+        }))
+        let result = await Promise.all(users.map(user => {
+            return firebase.firestore()
+                .collection('posts')
+                .doc(user.id)
+                .collection("userPosts")
+                .where("report", "==", true)
+                .get()
+                .then(snap => {
+                    return snap.docs.map(post => {
+                        let value;
+                        value = {
+                            ...user,
+                            postId: post.id,
+                            ...post.data()
+                        }
+                        return value;
+                    })
+                })
+        }))
+        const listResult = [];
+        result.forEach(element => {
+            element.forEach(el => {
+                listResult.push(el);
+            })
+        });
+        res.send({
+            result: listResult,
+        })
+    } catch (error) {
+        res.status(403).send(error.error)
+    }
+})
+
+router.get("/report-comments", async (req, res) => {
+    try {
+        const data = await firebase.firestore()
+            .collection('posts')
+            .get()
+            .then(snapshot => {
+                const data = snapshot.docs.map(item => {
+                    return item.id
+                })
+                return data
+            })
+
+
+        let users = await Promise.all(data.map(user => {
+            return firebase.firestore()
+                .collection('users')
+                .doc(user)
+                .get()
+                .then(doc => {
+                    if (doc.exists)
+                        return { id: doc.id, ...doc.data() }
+                })
+        }))
+        let posts = await Promise.all(users.map(user => {
+            return firebase.firestore()
+                .collection('posts')
+                .doc(user.id)
+                .collection("userPosts")
+                .where("report", "==", true)
+                .get()
+                .then(snap => {
+                    return snap.docs.map(post => {
+                        let value;
+                        value = {
+                            ...user,
+                            postId: post.id,
+                            ...post.data()
+                        }
+                        return value;
+                    })
+                })
+        }));
+        let [comments] = await Promise.all(posts[0].map(item => {
+            return firebase.firestore()
+                .collection('posts')
+                .doc(item.id)
+                .collection("userPosts")
+                .doc(item.postId)
+                .collection("comments")
+                .where("report", "==", true)
+                .get()
+                .then(snap => {
+                    return snap.docs.map(comment => {
+                        let value;
+                        value = {
+                            ...item,
+                            commentId: comment.id,
+                            commentData: comment.data()
+                        }
+                        return value;
+                    })
+                })
+        }));
+        const listResult = [];
+        comments.forEach(element => {
+            listResult.push(element);
+        });
+        res.send(listResult)
     } catch (error) {
         res.status(403).send(error.error)
     }

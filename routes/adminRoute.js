@@ -197,6 +197,33 @@ router.post('/login', async (req, res) => {
         res.status(400).json({ message: 'Can not find this id' })
     }
 });
+router.put('/change-password/:id', verifyToken, async (req, res) => {
+    try {
+        if (req.body.newPassword != req.body.confirmPassword)
+            res.status(400).json({ message: 'The new password and confirm password must be same' })
+        else {
+            const user = await Admin.findById(req.params.id)
+            if (user) {
+                if (bcrypt.compareSync(req.body.oldPassword, user.hash)) {
+                    const hash = bcrypt.hashSync(req.body.newPassword, parseInt(process.env.SALT));
+                    await Admin.findByIdAndUpdate(user._id, { hash })
+                    const token = jwt.sign({
+                        email: user.email,
+                        hash
+                    },
+                        process.env.KEY_SECRET,
+                        { expiresIn: 60 * 60 * 24 * 30 })
+                    return res.header('auth-token', token).send(token)
+                }
+                else {
+                    res.status(400).json({ message: 'Old password is incorrect' })
+                }
+            }
+        }
+    } catch (error) {
+        res.status(400).json({ message: 'Can not find this id' })
+    }
+});
 router.get('/', verifyToken, async (req, res) => {
     const data = jwt.verify(req.header('auth-token'), process.env.KEY_SECRET);
     const user = await Admin.findOne({ email: data.email });
@@ -248,7 +275,7 @@ router.get('/count', verifyToken, async (req, res) => {
     }
 });
 
-router.get("/post/:id/:userId", async (req, res) => {
+router.get("/post/:id/:userId", verifyToken, async (req, res) => {
     try {
         const page = Number(req.query.page);
         const pageSize = Number(req.query.pageSize);
